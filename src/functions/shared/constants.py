@@ -23,7 +23,9 @@ RUN_HOOK_PAYLOAD_VERSION = "1"
 MANAGED_AGENTS_BETA_HEADER = "managed-agents-2026-04-01"
 
 DEFAULT_IDLE_POLICY = {
-    "maxIdleDurationSeconds": 300,
+    # Idle = no inbound traffic to the MicroVM proxy, not CPU. The worker long-polls outbound,
+    # so 300 s suspended a VM still waiting for its work item. Set to the 8 h max lifetime.
+    "maxIdleDurationSeconds": 28800,
     "suspendedDurationSeconds": 60,
     "autoResumeEnabled": False,
 }

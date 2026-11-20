@@ -102,6 +102,9 @@ Resources:
             - Effect: Allow
               Action:
                 - "lambda:RunMicroVm"
+                # Resume a suspended session (autoResumeEnabled is False, so a caller must resume).
+                # IAM name assumed from the RunMicrovm pattern; confirm with a 403 as above.
+                - "lambda:ResumeMicroVm"
               Resource: "*"
             # PassRole for the MicroVM execution role. No iam:PassedToService
             # condition — the MicroVM service passes the role to a principal that
@@ -388,6 +391,17 @@ Resources:
                   StringEquals:
                     kms:ViaService: !Sub "ssm.${AWS::Region}.amazonaws.com"
                     kms:EncryptionContext:PARAMETER_ARN: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${EnvironmentKeyParamName}"
+        - PolicyName: session-outputs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Upload and presign session outputs under outputs/ only. The deployments/ prefix
+              # of the same bucket holds the MicroVM image builds and stays out of reach.
+              - Effect: Allow
+                Action:
+                  - "s3:PutObject"
+                  - "s3:GetObject"
+                Resource: !Sub "arn:${AWS::Partition}:s3:::claude-microvm-sandbox-artifacts-${AWS::AccountId}-${AWS::Region}/outputs/*"
         - PolicyName: self-terminate
           PolicyDocument:
             Version: "2012-10-17"
@@ -400,6 +414,25 @@ Resources:
               - Effect: Allow
                 Action: "lambda:TerminateMicrovm"
                 Resource: "*"
+        - PolicyName: self-suspend
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # The in-VM worker suspends itself when a session ends, so it can resume for
+              # follow-up messages. MicroVM ids are assigned at run time, so the resource
+              # can't be scoped ahead of time.
+              - Effect: Allow
+                Action: "lambda:SuspendMicrovm"
+                Resource: "*"
+        - PolicyName: read-dev-env-secret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # boot.sh fetches the dev_env secret (development.ini) at session start.
+              # Secrets Manager ARNs end in a random suffix, hence the wildcard.
+              - Effect: Allow
+                Action: "secretsmanager:GetSecretValue"
+                Resource: !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:dev_env*"
         - PolicyName: runtime-logs
           PolicyDocument:
             Version: "2012-10-17"

@@ -114,8 +114,10 @@ class Launcher:
             egress_network_connectors=[internet_egress_arn(self._config.aws_region)],
         )
 
+        # The VM is launched for this webhook's session, but a first run may serve another
+        # session's work item; the worker logs the served session when it finishes.
         logger.info(
-            "launched microvm_id=%s for session_id=%s",
+            "launched microvm_id=%s for webhook session_id=%s",
             launched.microvm_id,
             event.session_id,
         )
